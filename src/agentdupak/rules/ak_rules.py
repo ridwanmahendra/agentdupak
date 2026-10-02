@@ -5,6 +5,8 @@ Baru mencakup 2 kategori yang sudah diverifikasi dari dokumen nyata (SK Mengajar
 SK Penguji non-skripsi) -- kategori lain ditambah setelah parser-nya ada.
 """
 
+from __future__ import annotations
+
 from agentdupak.models import Aktivitas
 
 AK_PER_SKS_MENGAJAR = 1.0
