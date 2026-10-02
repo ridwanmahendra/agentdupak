@@ -35,6 +35,20 @@ def _current_dosen(request: Request):
     return db.get_dosen_by_email(email)
 
 
+def _urutkan_folder_relevan(folders: list[dict], nama_dosen: str) -> list[dict]:
+    """Taruh folder yang namanya mengandung kata dari nama dosen di urutan
+    paling atas -- daftar 'shared with me' biasanya berisi puluhan folder
+    tidak relevan, jadi ini bikin folder milik dosen sendiri kelihatan duluan
+    tanpa dia harus ketik di kotak pencarian."""
+    kata_nama = [k.lower() for k in nama_dosen.split() if len(k) > 2]
+
+    def skor(folder: dict) -> int:
+        nama_folder = folder["name"].lower()
+        return -sum(1 for kata in kata_nama if kata in nama_folder)
+
+    return sorted(folders, key=skor)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     dosen = _current_dosen(request)
@@ -44,6 +58,7 @@ async def index(request: Request):
     if not dosen["drive_folder_id"]:
         access_token = request.session.get("access_token")
         folders = drive_web.list_shared_folders(access_token) if access_token else []
+        folders = _urutkan_folder_relevan(folders, dosen["nama"])
         return templates.TemplateResponse(
             request, "pilih_folder.html", {"dosen": dosen, "folders": folders}
         )
