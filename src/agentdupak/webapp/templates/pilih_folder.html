@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <title>Pilih folder Drive - DUPAK Agent</title>
+</head>
+<body style="font-family: sans-serif; max-width: 560px; margin: 60px auto;">
+  <h1>Halo, {{ dosen.nama }}</h1>
+  <p>Pilih folder Drive yang berisi dokumen SK Anda (yang di-share oleh BAAK fakultas):</p>
+
+  {% if folders %}
+    <form method="post" action="/pilih-folder">
+      {% for f in folders %}
+        <label style="display: block; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px;">
+          <input type="radio" name="folder_id" value="{{ f.id }}" required
+                 onchange="document.getElementById('folder_nama').value = '{{ f.name }}'">
+          {{ f.name }}
+        </label>
+      {% endfor %}
+      <input type="hidden" id="folder_nama" name="folder_nama" value="">
+      <button type="submit" style="padding: 10px 20px;">Pilih folder ini</button>
+    </form>
+  {% else %}
+    <p><em>Tidak ada folder yang di-share ke akun Anda. Minta admin BAAK fakultas
+       untuk share folder dokumen Anda ke email ini.</em></p>
+  {% endif %}
+
+  <form method="post" action="/auth/logout" style="margin-top: 24px;">
+    <button type="submit">Logout</button>
+  </form>
+</body>
+</html>

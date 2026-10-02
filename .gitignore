@@ -6,3 +6,6 @@ __pycache__/
 # kredensial Google OAuth milik masing-masing orang -- jangan pernah commit
 credentials.json
 token.json
+
+# data runtime webapp (per deployment, jangan ikut di-commit)
+agentdupak.db

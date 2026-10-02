@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard DUPAK - {{ dosen.nama }}</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 14px; }
+    .total { font-size: 20px; font-weight: bold; margin-top: 16px; }
+    .log { background: #f6f6f6; padding: 12px; border-radius: 4px; font-size: 13px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h1>{{ dosen.nama }}</h1>
+    <form method="post" action="/auth/logout"><button type="submit">Logout</button></form>
+  </div>
+  <p>Folder Drive: <strong>{{ dosen.drive_folder_nama }}</strong></p>
+
+  <form method="post" action="/sync">
+    <button type="submit" style="padding: 10px 20px;">Sync sekarang</button>
+  </form>
+
+  {% if sync_log %}
+    <div class="log">
+      {% for line in sync_log %}<div>{{ line }}</div>{% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="total">Total AK: {{ total_ak }}</div>
+
+  <table>
+    <tr><th>Kategori</th><th>Sumber File</th><th>AK</th><th>Detail</th></tr>
+    {% for a in aktivitas %}
+    <tr>
+      <td>{{ a.kategori }}</td>
+      <td>{{ a.sumber_file }}</td>
+      <td>{{ a.ak }}</td>
+      <td><code style="font-size: 11px;">{{ a.atribut_json }}</code></td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
