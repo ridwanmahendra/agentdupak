@@ -6,11 +6,10 @@ Jalankan (lihat README untuk setup OAuth client "Web application"):
         uvicorn agentdupak.webapp.main:app --reload
 """
 
-from __future__ import annotations
-
 import base64
 import json
 import os
+from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -55,7 +54,7 @@ def _encode_path(crumbs: list[dict]) -> str:
     return base64.urlsafe_b64encode(json.dumps(crumbs).encode()).decode()
 
 
-def _decode_path(path_param: str | None) -> list[dict]:
+def _decode_path(path_param: Optional[str]) -> list[dict]:
     if not path_param:
         return []
     return json.loads(base64.urlsafe_b64decode(path_param.encode()).decode())
@@ -86,7 +85,7 @@ async def index(request: Request):
 
 
 @app.get("/browse", response_class=HTMLResponse)
-async def browse(request: Request, folder_id: str | None = None, path: str | None = None):
+async def browse(request: Request, folder_id: Optional[str] = None, path: Optional[str] = None):
     """Browser folder Drive bertingkat: dosen bisa masuk ke folder induk
     (misal 'FTIK - DATA DOSEN' yang berisi folder SEMUA dosen) dan pilih
     subfolder yang spesifik miliknya -- supaya sync tidak ikut membaca
