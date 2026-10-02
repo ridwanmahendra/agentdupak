@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .venv/
+
+# kredensial Google OAuth milik masing-masing orang -- jangan pernah commit
+credentials.json
+token.json
