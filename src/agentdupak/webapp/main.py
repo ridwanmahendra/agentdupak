@@ -71,7 +71,7 @@ async def index(request: Request):
 
     aktivitas = db.get_aktivitas(dosen["id"])
     total_ak = sum(a["ak"] for a in aktivitas)
-    sync_log = request.session.pop("sync_log", None)
+    sync_log = db.get_sync_log(dosen["id"])
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -186,7 +186,6 @@ async def sync(request: Request):
         files, download_bytes=lambda file_id: drive_web.download_pdf_for_user(access_token, file_id)
     )
     terapkan(aktivitas)
-    db.replace_aktivitas(dosen["id"], aktivitas)
+    db.replace_aktivitas(dosen["id"], aktivitas, log)
 
-    request.session["sync_log"] = log
     return RedirectResponse(url="/", status_code=303)

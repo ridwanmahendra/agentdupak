@@ -30,6 +30,9 @@
 
   {% if sync_log %}
     <div class="log">
+      <div style="color: #888; margin-bottom: 4px;">
+        Log sync terakhir{% if dosen.last_synced_pada %} ({{ dosen.last_synced_pada }} UTC){% endif %}:
+      </div>
       {% for line in sync_log %}<div>{{ line }}</div>{% endfor %}
     </div>
   {% endif %}

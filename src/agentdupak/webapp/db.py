@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS dosen (
     nama TEXT NOT NULL,
     refresh_token TEXT,
     drive_folder_id TEXT,
-    drive_folder_nama TEXT
+    drive_folder_nama TEXT,
+    last_sync_log TEXT,
+    last_synced_pada TEXT
 );
 
 CREATE TABLE IF NOT EXISTS aktivitas (
@@ -51,6 +53,15 @@ def connect():
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
+        # migrasi ringan untuk database lama yang sudah ada sebelum kolom ini ditambahkan
+        for ddl in (
+            "ALTER TABLE dosen ADD COLUMN last_sync_log TEXT",
+            "ALTER TABLE dosen ADD COLUMN last_synced_pada TEXT",
+        ):
+            try:
+                conn.execute(ddl)
+            except sqlite3.OperationalError:
+                pass  # kolom sudah ada
 
 
 def upsert_dosen(email: str, nama: str, refresh_token: str | None) -> int:
@@ -83,8 +94,9 @@ def set_drive_folder(dosen_id: int, folder_id: str, folder_nama: str) -> None:
         )
 
 
-def replace_aktivitas(dosen_id: int, aktivitas_list) -> None:
-    """Ganti seluruh aktivitas milik 1 dosen dengan hasil sync terbaru."""
+def replace_aktivitas(dosen_id: int, aktivitas_list, log: list[str]) -> None:
+    """Ganti seluruh aktivitas milik 1 dosen dengan hasil sync terbaru, dan simpan
+    log sync-nya secara permanen (bukan cuma sekali tampil lalu hilang)."""
     with connect() as conn:
         conn.execute("DELETE FROM aktivitas WHERE dosen_id = ?", (dosen_id,))
         conn.executemany(
@@ -95,6 +107,18 @@ def replace_aktivitas(dosen_id: int, aktivitas_list) -> None:
                 for a in aktivitas_list
             ],
         )
+        conn.execute(
+            "UPDATE dosen SET last_sync_log = ?, last_synced_pada = datetime('now') WHERE id = ?",
+            (json.dumps(log, ensure_ascii=False), dosen_id),
+        )
+
+
+def get_sync_log(dosen_id: int) -> list[str]:
+    with connect() as conn:
+        row = conn.execute("SELECT last_sync_log FROM dosen WHERE id = ?", (dosen_id,)).fetchone()
+        if not row or not row["last_sync_log"]:
+            return []
+        return json.loads(row["last_sync_log"])
 
 
 def get_aktivitas(dosen_id: int) -> list[sqlite3.Row]:
