@@ -6,16 +6,28 @@ angka kredit (AK) otomatis — tanpa mengisi Excel manual.
 
 ## Status saat ini
 
-Baru mencakup 2 jenis dokumen yang sudah diverifikasi dari data nyata:
+Sudah divalidasi sync end-to-end dari Drive asli (bukan cuma fixture). Hasil sync
+nyata (lihat log di dashboard): SK Mengajar/Sesuai Forlap berhasil penuh,
+sisanya masih ter-skip karena belum ada parsernya.
 
-| Jenis dokumen | Parser | Butuh LLM? |
+| Jenis dokumen | Parser | Catatan |
 |---|---|---|
-| SK Penugasan Mengajar ("JA ... Genap/Ganjil") | `parsers/sk_mengajar.py` | Tidak — teks terstruktur rapi |
-| Berita Acara Penguji (non-skripsi) | `parsers/sk_penguji.py` | Tidak — teks terstruktur rapi |
-| Lembar Pengesahan / Cover (hasil scan, ber-watermark) | belum dibuat | Ya — OCR-nya noisy |
-| SK Bimbingan (metadata ada di nama file) | belum dibuat | Tidak — cukup parse nama file |
+| SK Mengajar / Sesuai Forlap ("JA ... Genap/Ganjil") | `parsers/sk_mengajar.py` | Teks asli, tidak perlu OCR. **Sumber kebenaran untuk mengajar** — jangan buat parser untuk folder "Sesuai Siakad" di sebelahnya, itu representasi lain dari data yang sama dan akan double-counting AK kalau ikut diparse. |
+| Berita Acara Penguji (non-skripsi) | `parsers/sk_penguji.py` | Regex-nya sudah ada, **tapi dokumen aslinya ternyata hasil scan** (pypdf dapat 0 karakter) — baru bisa tervalidasi penuh setelah OCR fallback ini (`pdf_extract.py`) dicoba ke dokumen asli. |
+| Lembar Pengesahan / Cover (hasil scan, ber-watermark) | belum dibuat | OCR terbukti jalan (`pdf_extract.py` auto-fallback), tapi hasilnya noisy karena watermark — parsernya nanti harus toleran, cari frasa kunci bukan posisi baris persis. |
+| SK Bimbingan (metadata ada di nama file) | belum dibuat | Tidak perlu OCR — nama file sudah berisi tanggal, prodi, dosen, mahasiswa, NIM. |
 
 ## Menjalankan
+
+Butuh 2 dependency sistem untuk OCR dokumen hasil scan (tidak bisa lewat pip):
+
+```bash
+# macOS
+brew install tesseract tesseract-lang poppler
+
+# Debian/Ubuntu
+sudo apt install tesseract-ocr tesseract-ocr-ind poppler-utils
+```
 
 ```bash
 pip install -r requirements.txt
@@ -76,7 +88,7 @@ src/agentdupak/
     auth.py               # OAuth login Google (Authlib)
     drive_web.py           # versi web: pakai access token dari sesi browser
     db.py                  # penyimpanan SQLite (dosen + aktivitas)
-    templates/              # login.html, pilih_folder.html, dashboard.html
+    templates/              # login.html, browse.html, dashboard.html
 scripts/
   demo.py               # jalan dari fixture teks (tanpa Drive) -- CLI
   sync_and_parse.py      # jalan end-to-end dari Drive asli -- CLI
@@ -85,8 +97,9 @@ tests/fixtures/          # contoh teks asli (hasil ekstraksi PDF nyata) untuk te
 
 ## Langkah selanjutnya
 
-1. Parser untuk SK Bimbingan (dari nama file) dan Lembar Pengesahan/Cover (lewat LLM lokal, karena hasil scan/OCR noisy).
-2. Pemetaan folder → parser di `pipeline.py` (`PARSER_BY_FOLDER`) baru mencakup "SK Mengajar" dan "SK Penguji" — tambah entri baru begitu parser lain siap.
-3. Lengkapi `rules/ak_rules.py` dengan kategori Penelitian, Pengabdian, Penunjang dari sheet DUPAK OK.
-4. Status review sebelum AK dianggap final (sekarang langsung dihitung begitu sync, belum ada tahap konfirmasi dosen).
-5. Simpan refresh_token dengan terenkripsi di DB (sekarang plaintext) sebelum dipakai di luar localhost.
+1. Validasi ulang sync di folder "SK Penguji" sekarang OCR fallback ada — kalau regex `sk_penguji.py` masih gagal di teks hasil OCR yang noisy, perlu diperlonggar (atau diganti LLM lokal untuk ekstraksi, bukan regex).
+2. Parser untuk SK Bimbingan (dari nama file) dan Lembar Pengesahan/Cover (regex toleran noise, atau LLM lokal).
+3. Pemetaan folder → parser di `pipeline.py` (`PARSER_BY_FOLDER`) baru mencakup "SK Mengajar" (khusus subfolder "Sesuai Forlap") dan "SK Penguji" — tambah entri baru begitu parser lain siap, dan pastikan "Sesuai Siakad" tetap di-skip sengaja.
+4. Lengkapi `rules/ak_rules.py` dengan kategori Penelitian, Pengabdian, Penunjang dari sheet DUPAK OK.
+5. Status review sebelum AK dianggap final (sekarang langsung dihitung begitu sync, belum ada tahap konfirmasi dosen).
+6. Simpan refresh_token dengan terenkripsi di DB (sekarang plaintext) sebelum dipakai di luar localhost.

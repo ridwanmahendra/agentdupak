@@ -15,16 +15,22 @@ from agentdupak.drive_common import DriveFile
 from agentdupak.models import Aktivitas
 from agentdupak.parsers import sk_mengajar, sk_penguji
 
-# nama folder (persis seperti di Drive) -> parser yang cocok
-PARSER_BY_FOLDER = {
-    "SK Mengajar": sk_mengajar.parse,
-    "SK Penguji": sk_penguji.parse,
-}
+# (folder yang harus ADA di path, folder yang harus TIDAK ADA di path, parser)
+#
+# "SK Mengajar/Sesuai Forlap" sengaja wajib persis itu, bukan cuma "SK Mengajar":
+# di Drive asli ada folder sodara "SK Mengajar/Sesuai Siakad" yang isinya
+# representasi lain dari data mengajar yang SAMA (SIAKAD vs Forlap PDDikti).
+# Kalau keduanya ikut diparse, AK mengajar bakal double-counting. Forlap yang
+# dipakai karena itu sumber resmi untuk pelaporan ke LLDIKTI.
+PARSER_RULES: list[tuple[list[str], list[str], object]] = [
+    (["SK Mengajar", "Sesuai Forlap"], ["Sesuai Siakad"], sk_mengajar.parse),
+    (["SK Penguji"], [], sk_penguji.parse),
+]
 
 
 def pilih_parser(path: list[str]):
-    for folder_name, parser in PARSER_BY_FOLDER.items():
-        if folder_name in path:
+    for wajib_ada, wajib_tidak_ada, parser in PARSER_RULES:
+        if all(f in path for f in wajib_ada) and not any(f in path for f in wajib_tidak_ada):
             return parser
     return None
 
