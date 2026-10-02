@@ -16,7 +16,13 @@
     <h1>{{ dosen.nama }}</h1>
     <form method="post" action="/auth/logout"><button type="submit">Logout</button></form>
   </div>
-  <p>Folder Drive: <strong>{{ dosen.drive_folder_nama }}</strong></p>
+  <p>
+    Folder Drive: <strong>{{ dosen.drive_folder_nama }}</strong>
+    &mdash;
+    <form method="post" action="/ganti-folder" style="display: inline;">
+      <button type="submit" style="font-size: 13px;">Ganti folder</button>
+    </form>
+  </p>
 
   <form method="post" action="/sync">
     <button type="submit" style="padding: 10px 20px;">Sync sekarang</button>

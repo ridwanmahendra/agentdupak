@@ -18,6 +18,33 @@ class DriveFile:
     path: list[str]  # nama folder dari root sampai ke file ini
 
 
+def list_subfolders(service, folder_id: str) -> list[dict]:
+    """Daftar subfolder LANGSUNG di bawah folder_id (tidak rekursif) -- dipakai
+    untuk navigasi manual, supaya user bisa masuk ke folder induk (misal
+    'FTIK - DATA DOSEN' yang berisi folder semua dosen) lalu pilih folder
+    spesifik miliknya sendiri, bukan ikut sync punya dosen lain."""
+    folders: list[dict] = []
+    page_token = None
+    while True:
+        response = (
+            service.files()
+            .list(
+                q=(
+                    f"'{folder_id}' in parents and trashed = false "
+                    "and mimeType = 'application/vnd.google-apps.folder'"
+                ),
+                fields="nextPageToken, files(id, name)",
+                pageToken=page_token,
+            )
+            .execute()
+        )
+        folders += response.get("files", [])
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            break
+    return folders
+
+
 def walk_pdfs(service, folder_id: str, path: list[str] | None = None) -> list[DriveFile]:
     """Rekursif susun daftar semua file PDF di bawah folder_id, dengan jejak path folder-nya."""
     path = path or []

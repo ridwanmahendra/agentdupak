@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <title>Pilih folder Drive - DUPAK Agent</title>
+</head>
+<body style="font-family: sans-serif; max-width: 560px; margin: 60px auto;">
+  <h1>Halo, {{ dosen.nama }}</h1>
+
+  <nav style="font-size: 14px; margin-bottom: 16px; color: #555;">
+    {% for b in breadcrumbs %}
+      {% if not loop.last %}<a href="{{ b.href }}">{{ b.name }}</a> / {% else %}<strong>{{ b.name }}</strong>{% endif %}
+    {% endfor %}
+  </nav>
+
+  {% if current_folder_id %}
+    <p>Kalau folder <strong>{{ current_folder_name }}</strong> ini sudah benar isinya dokumen SK Anda
+       (bukan folder induk yang berisi folder dosen lain juga), pilih ini:</p>
+    <form method="post" action="/pilih-folder" style="margin-bottom: 24px;">
+      <input type="hidden" name="folder_id" value="{{ current_folder_id }}">
+      <input type="hidden" name="folder_nama" value="{{ current_folder_name }}">
+      <button type="submit" style="padding: 10px 20px; font-weight: bold;">
+        Pakai "{{ current_folder_name }}" sebagai folder saya
+      </button>
+    </form>
+  {% else %}
+    <p>Pilih folder Drive yang di-share ke Anda, lalu masuk ke dalamnya untuk
+       cari folder dengan dokumen SK Anda sendiri (bukan folder yang berisi dokumen banyak dosen).</p>
+  {% endif %}
+
+  {% if items %}
+    <input type="text" id="cari" placeholder="Cari nama folder..." autofocus
+           style="width: 100%; padding: 10px; margin-bottom: 12px; box-sizing: border-box; font-size: 15px;"
+           oninput="filterItems(this.value)">
+
+    <div id="daftar-folder">
+      {% for f in items %}
+        <a href="{{ f.drill_href }}" class="folder-item" data-nama="{{ f.name|lower }}"
+           style="display: block; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px; text-decoration: none; color: inherit;">
+          {{ f.name }} &rarr;
+        </a>
+      {% endfor %}
+    </div>
+    <p id="tidak-ketemu" style="display: none; color: #666;"><em>Tidak ada folder yang cocok dengan pencarian.</em></p>
+
+    <script>
+      function filterItems(kata) {
+        kata = kata.toLowerCase().trim();
+        var els = document.querySelectorAll('.folder-item');
+        var adaYangCocok = false;
+        els.forEach(function (el) {
+          var cocok = el.dataset.nama.includes(kata);
+          el.style.display = cocok ? 'block' : 'none';
+          if (cocok) adaYangCocok = true;
+        });
+        document.getElementById('tidak-ketemu').style.display = adaYangCocok ? 'none' : 'block';
+      }
+    </script>
+  {% elif not current_folder_id %}
+    <p><em>Tidak ada folder yang di-share ke akun Anda. Minta admin BAAK fakultas
+       untuk share folder dokumen Anda ke email ini.</em></p>
+  {% else %}
+    <p><em>Folder ini tidak punya subfolder lagi -- kalau ini memang folder yang berisi SK Anda, pakai tombol di atas.</em></p>
+  {% endif %}
+
+  <form method="post" action="/auth/logout" style="margin-top: 24px;">
+    <button type="submit">Logout</button>
+  </form>
+</body>
+</html>

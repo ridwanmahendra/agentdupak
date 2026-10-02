@@ -7,9 +7,16 @@ from __future__ import annotations
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-from agentdupak.drive_common import DriveFile, download_pdf_bytes, walk_pdfs
+from agentdupak.drive_common import DriveFile, download_pdf_bytes, list_subfolders, walk_pdfs
 
-__all__ = ["DriveFile", "list_shared_folders", "walk_pdfs_for_user", "download_pdf_for_user"]
+__all__ = [
+    "DriveFile",
+    "list_shared_folders",
+    "list_subfolders_for_user",
+    "get_folder_name",
+    "walk_pdfs_for_user",
+    "download_pdf_for_user",
+]
 
 
 def _service(access_token: str):
@@ -18,8 +25,10 @@ def _service(access_token: str):
 
 
 def list_shared_folders(access_token: str) -> list[dict]:
-    """Folder yang di-share ke user yang sedang login -- ini yang dipilih user
-    sebagai folder dosen miliknya sendiri (biasanya 1 folder dari BAAK fakultas)."""
+    """Folder yang di-share LANGSUNG ke user yang sedang login -- titik awal
+    navigasi. Bisa berupa folder induk (misal 'FTIK - DATA DOSEN' yang berisi
+    folder semua dosen) yang perlu di-drill-down lagi, bukan selalu folder
+    milik dosen itu sendiri."""
     service = _service(access_token)
     response = (
         service.files()
@@ -30,6 +39,15 @@ def list_shared_folders(access_token: str) -> list[dict]:
         .execute()
     )
     return response.get("files", [])
+
+
+def list_subfolders_for_user(access_token: str, folder_id: str) -> list[dict]:
+    return list_subfolders(_service(access_token), folder_id)
+
+
+def get_folder_name(access_token: str, folder_id: str) -> str:
+    service = _service(access_token)
+    return service.files().get(fileId=folder_id, fields="name").execute()["name"]
 
 
 def walk_pdfs_for_user(access_token: str, folder_id: str) -> list[DriveFile]:

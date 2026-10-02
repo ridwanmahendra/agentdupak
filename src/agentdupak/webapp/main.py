@@ -8,6 +8,8 @@ Jalankan (lihat README untuk setup OAuth client "Web application"):
 
 from __future__ import annotations
 
+import base64
+import json
 import os
 
 from fastapi import FastAPI, Request
@@ -49,6 +51,16 @@ def _urutkan_folder_relevan(folders: list[dict], nama_dosen: str) -> list[dict]:
     return sorted(folders, key=skor)
 
 
+def _encode_path(crumbs: list[dict]) -> str:
+    return base64.urlsafe_b64encode(json.dumps(crumbs).encode()).decode()
+
+
+def _decode_path(path_param: str | None) -> list[dict]:
+    if not path_param:
+        return []
+    return json.loads(base64.urlsafe_b64decode(path_param.encode()).decode())
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     dosen = _current_dosen(request)
@@ -56,12 +68,7 @@ async def index(request: Request):
         return templates.TemplateResponse(request, "login.html", {})
 
     if not dosen["drive_folder_id"]:
-        access_token = request.session.get("access_token")
-        folders = drive_web.list_shared_folders(access_token) if access_token else []
-        folders = _urutkan_folder_relevan(folders, dosen["nama"])
-        return templates.TemplateResponse(
-            request, "pilih_folder.html", {"dosen": dosen, "folders": folders}
-        )
+        return RedirectResponse(url="/browse")
 
     aktivitas = db.get_aktivitas(dosen["id"])
     total_ak = sum(a["ak"] for a in aktivitas)
@@ -74,6 +81,49 @@ async def index(request: Request):
             "aktivitas": aktivitas,
             "total_ak": total_ak,
             "sync_log": sync_log,
+        },
+    )
+
+
+@app.get("/browse", response_class=HTMLResponse)
+async def browse(request: Request, folder_id: str | None = None, path: str | None = None):
+    """Browser folder Drive bertingkat: dosen bisa masuk ke folder induk
+    (misal 'FTIK - DATA DOSEN' yang berisi folder SEMUA dosen) dan pilih
+    subfolder yang spesifik miliknya -- supaya sync tidak ikut membaca
+    dokumen dosen lain."""
+    dosen = _current_dosen(request)
+    if not dosen:
+        return RedirectResponse(url="/")
+    access_token = request.session.get("access_token")
+
+    crumbs = _decode_path(path)
+
+    if folder_id is None:
+        items = drive_web.list_shared_folders(access_token)
+        items = _urutkan_folder_relevan(items, dosen["nama"])
+        current_folder_name = None
+    else:
+        items = drive_web.list_subfolders_for_user(access_token, folder_id)
+        current_folder_name = crumbs[-1]["name"] if crumbs else drive_web.get_folder_name(access_token, folder_id)
+
+    for item in items:
+        new_crumbs = crumbs + [{"id": item["id"], "name": item["name"]}]
+        item["drill_href"] = f"/browse?folder_id={item['id']}&path={_encode_path(new_crumbs)}"
+
+    breadcrumbs = [{"name": "Folder Drive Saya", "href": "/browse"}]
+    for i, c in enumerate(crumbs):
+        sub_path = crumbs[: i + 1]
+        breadcrumbs.append({"name": c["name"], "href": f"/browse?folder_id={c['id']}&path={_encode_path(sub_path)}"})
+
+    return templates.TemplateResponse(
+        request,
+        "browse.html",
+        {
+            "dosen": dosen,
+            "items": items,
+            "breadcrumbs": breadcrumbs,
+            "current_folder_id": folder_id,
+            "current_folder_name": current_folder_name,
         },
     )
 
@@ -114,6 +164,14 @@ async def pilih_folder(request: Request):
     folder_nama = form["folder_nama"]
     db.set_drive_folder(dosen["id"], folder_id, folder_nama)
     return RedirectResponse(url="/", status_code=303)
+
+
+@app.post("/ganti-folder")
+async def ganti_folder(request: Request):
+    """Reset pilihan folder supaya dosen bisa browse & pilih ulang."""
+    dosen = _current_dosen(request)
+    db.set_drive_folder(dosen["id"], None, None)
+    return RedirectResponse(url="/browse", status_code=303)
 
 
 @app.post("/sync")
