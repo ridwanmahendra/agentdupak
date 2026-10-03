@@ -13,7 +13,7 @@ lewat beberapa putaran perbaikan dari log sync nyata.
 |---|---|---|
 | SK Mengajar / Sesuai Forlap ("JA ... Genap/Ganjil") | `parsers/sk_mengajar.py` | ✅ Tervalidasi di data nyata (lintas semester). **Sumber kebenaran untuk mengajar** — folder "Sesuai Siakad" di sebelahnya sengaja di-skip permanen (representasi lain dari data yang sama, akan double-counting kalau diparse juga). |
 | Berita Acara Penguji (non-skripsi + TA) | `parsers/sk_penguji.py` | ✅ Tervalidasi di data nyata setelah OCR fallback dipasang — dokumen aslinya hasil scan (pypdf dapat 0 karakter), bukan teks asli seperti dugaan awal. |
-| SK Bimbingan (Pembimbing Publikasi Karya Ilmiah) | `parsers/sk_bimbingan.py` | ✅ Parser jalan (dari nama file, tanpa download PDF). ⚠️ **AK-nya BELUM ada rule resmi** — ditandai `ak_perlu_review=True`, dihitung 0 sementara, tidak bikin sync gagal. Perlu dikonfirmasi nilai AK resminya dulu sebelum dipakai untuk pengajuan DUPAK sungguhan. |
+| SK Bimbingan (Pembimbing Publikasi Karya Ilmiah) | `parsers/sk_bimbingan.py` | ✅ Tervalidasi — parser jalan dari nama file saja (tanpa download PDF). AK = 1.0/mahasiswa, dikonfirmasi oleh dosen pemilik data: diperlakukan setara "membimbing skripsi, pembimbing utama" (folder ini selalu pembimbing tunggal, bukan pendamping). |
 | Lembar Pengesahan / Cover (hasil scan, ber-watermark) | belum dibuat | OCR terbukti jalan (`pdf_extract.py` auto-fallback), tapi hasilnya noisy karena watermark — parsernya nanti harus toleran, cari frasa kunci bukan posisi baris persis. |
 
 ## Menjalankan
@@ -96,9 +96,8 @@ tests/fixtures/          # contoh teks asli (hasil ekstraksi PDF nyata) untuk te
 
 ## Langkah selanjutnya
 
-1. **Konfirmasi nilai AK resmi untuk "bimbingan publikasi karya ilmiah"** (jalur non-skripsi) dan tambahkan ke `rules/ak_rules.py` — begitu ketemu, kategori ini otomatis lepas dari status "perlu review".
-2. Parser untuk Lembar Pengesahan/Cover (regex toleran noise OCR, atau LLM lokal untuk kasus yang terlalu berantakan).
-3. Lengkapi `rules/ak_rules.py` dengan kategori Penelitian, Pengabdian, Penunjang dari sheet DUPAK OK.
-4. Status review manual sebelum AK dianggap final untuk SUBMIT resmi (sekarang langsung dihitung begitu sync, belum ada tahap "dosen konfirmasi" terpisah dari "sistem menghitung").
-5. Simpan refresh_token dengan terenkripsi di DB (sekarang plaintext) sebelum dipakai di luar localhost.
-6. UI untuk menampilkan & menindaklanjuti aktivitas berstatus `ak_perlu_review` secara terpusat (sekarang cuma ditandai warna kuning di tabel dashboard).
+1. Parser untuk Lembar Pengesahan/Cover (regex toleran noise OCR, atau LLM lokal untuk kasus yang terlalu berantakan).
+2. Lengkapi `rules/ak_rules.py` dengan kategori Penelitian, Pengabdian, Penunjang dari sheet DUPAK OK.
+3. Status review manual sebelum AK dianggap final untuk SUBMIT resmi (sekarang langsung dihitung begitu sync, belum ada tahap "dosen konfirmasi" terpisah dari "sistem menghitung").
+4. Simpan refresh_token dengan terenkripsi di DB (sekarang plaintext) sebelum dipakai di luar localhost.
+5. UI untuk menampilkan & menindaklanjuti aktivitas berstatus `ak_perlu_review` secara terpusat (sekarang cuma ditandai warna kuning di tabel dashboard) -- relevan lagi begitu ada kategori baru yang parsernya lebih dulu jadi daripada aturan AK-nya dikonfirmasi.

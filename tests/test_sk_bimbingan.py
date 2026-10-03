@@ -38,13 +38,12 @@ def test_tidak_butuh_download_pdf():
     assert sk_bimbingan.parse.butuh_download is False
 
 
-def test_ak_belum_ada_rule_ditandai_perlu_review_bukan_crash():
-    """Kategori ini belum punya nilai AK resmi -- terapkan() tidak boleh
-    melempar exception dan menghentikan seluruh sync gara-gara ini."""
+def test_ak_bimbingan_publikasi_ilmiah_adalah_1_pembimbing_utama():
+    """Dikonfirmasi oleh dosen pemilik data: diperlakukan setara membimbing
+    skripsi, dan dosen di folder ini selalu pembimbing tunggal/utama."""
     aktivitas = sk_bimbingan.parse("", sumber_file="RIDWAN MAHENDRA - KHOIRUN NIDA.pdf")
     hasil, peringatan = terapkan(aktivitas)
 
-    assert hasil[0].ak == 0.0
-    assert hasil[0].ak_perlu_review is True
-    assert len(peringatan) == 1
-    assert "pendidikan.bimbingan_publikasi_ilmiah" in peringatan[0]
+    assert hasil[0].ak == 1.0
+    assert hasil[0].ak_perlu_review is False
+    assert peringatan == []

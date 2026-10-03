@@ -13,6 +13,13 @@ from agentdupak.models import Aktivitas
 AK_PER_SKS_MENGAJAR = 1.0
 AK_PENGUJI = {"ketua": 1.0, "anggota": 0.5}
 
+# "Pembimbing Publikasi Karya Ilmiah" (jalur non-skripsi) dikonfirmasi oleh
+# dosen pemilik data: diperlakukan setara "membimbing skripsi", dan folder ini
+# selalu berisi dosen sebagai pembimbing TUNGGAL/UTAMA (bukan pendamping) --
+# jadi pakai nilai pembimbing utama skripsi, bukan pendamping (yang biasanya
+# setengahnya).
+AK_BIMBINGAN_PUBLIKASI_ILMIAH = 1.0
+
 
 def hitung_ak(aktivitas: Aktivitas) -> float:
     if aktivitas.kategori == "pendidikan.mengajar":
@@ -25,6 +32,9 @@ def hitung_ak(aktivitas: Aktivitas) -> float:
                 f"Peran penguji tidak dikenali: {peran!r} (sumber: {aktivitas.sumber_file})"
             )
         return AK_PENGUJI[peran]
+
+    if aktivitas.kategori == "pendidikan.bimbingan_publikasi_ilmiah":
+        return AK_BIMBINGAN_PUBLIKASI_ILMIAH
 
     raise ValueError(f"Kategori belum punya rule AK: {aktivitas.kategori!r}")
 
