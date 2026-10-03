@@ -10,17 +10,31 @@ def _seed(tmp_path, monkeypatch):
     aktivitas = [
         Aktivitas(
             kategori="pendidikan.mengajar",
-            dosen="Test Dosen",
+            dosen="",
             atribut={"mata_kuliah": "Kecerdasan Buatan", "kelas": "IF 24 C", "sks": 4, "semester": "Genap", "tahun_ajaran": "2025/2026"},
             ak=4.0,
             sumber_file="JA Genap.pdf",
         ),
         Aktivitas(
+            kategori="pendidikan.mengajar",
+            dosen="",
+            atribut={"mata_kuliah": "Sistem Pakar", "kelas": "IF GAB", "sks": 2, "semester": "Genap", "tahun_ajaran": "2025/2026"},
+            ak=2.0,
+            sumber_file="JA Genap.pdf",
+        ),
+        Aktivitas(
             kategori="pendidikan.menguji",
-            dosen="Test Dosen",
-            atribut={"peran": "ketua", "nama_mahasiswa": "Reza", "npm": "21312101", "judul": "Judul singkat"},
+            dosen="",
+            atribut={"peran": "ketua", "nama_mahasiswa": "Reza", "npm": "21312101", "tanggal": "13 Mei 2026", "judul": "x"},
             ak=1.0,
             sumber_file="Publikasi - Reza.pdf",
+        ),
+        Aktivitas(
+            kategori="pendidikan.bimbingan_publikasi_ilmiah",
+            dosen="",
+            atribut={"nama_mahasiswa": "Khoirun Nida", "nim": None, "tanggal": None},
+            ak=1.0,
+            sumber_file="RIDWAN - KHOIRUN NIDA.pdf",
         ),
         Aktivitas(
             kategori="kategori.belum.ada.rule",
@@ -35,29 +49,54 @@ def _seed(tmp_path, monkeypatch):
     return dosen_id
 
 
-def test_generate_workbook_punya_2_sheet_dengan_formula_bukan_angka_statis(tmp_path, monkeypatch):
+def _semua_sel(ws):
+    return {c.coordinate: c.value for row in ws.iter_rows() for c in row if c.value is not None}
+
+
+def test_generate_workbook_meniru_struktur_sheet_pendidikan_asli(tmp_path, monkeypatch):
     dosen_id = _seed(tmp_path, monkeypatch)
     rows = db.get_aktivitas(dosen_id)
 
     wb = generate_workbook("Test Dosen", rows)
 
-    assert wb.sheetnames == ["Ringkasan", "Detail"]
+    assert "PENDIDIKAN" in wb.sheetnames
+    # kategori yang belum ada parser/rule ditaruh di sheet terpisah, bukan hilang
+    assert "Belum Terpetakan" in wb.sheetnames
 
-    ws_ringkasan = wb["Ringkasan"]
-    # total ringkasan selalu formula SUM, bukan angka langsung
-    nilai_formula = [c.value for row in ws_ringkasan.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("=SUM(")]
-    assert nilai_formula, "tidak ketemu formula SUM di sheet Ringkasan"
+    ws = wb["PENDIDIKAN"]
+    sel = _semua_sel(ws)
 
-    ws_detail = wb["Detail"]
-    assert ws_detail["A1"].value == "No"
-    assert ws_detail["F1"].value == "AK"
+    # judul & header kolom gaya form resmi
+    assert sel["A1"] == "SURAT PERNYATAAN"
+    assert sel["A2"] == "MELAKSANAKAN PENDIDIKAN"
+    assert "Jumlah\nAngka\nKredit" in sel.values()
 
-    uraian_kolom_c = {row[1].value: row[2].value for row in ws_detail.iter_rows(min_row=2, max_row=1 + len(rows))}
-    assert uraian_kolom_c["pendidikan.mengajar"] == "Kecerdasan Buatan (IF 24 C) -- 4 SKS -- Genap 2025/2026"
+    # 2 kelas mengajar semester yang sama digabung 1 sub total per semester
+    uraian_d = [v for k, v in sel.items() if k.startswith("D") and isinstance(v, str) and "Kecerdasan" in v]
+    assert uraian_d == ["Kecerdasan Buatan (IF 24 C)"]
+    subtotal_formula = [v for v in sel.values() if isinstance(v, str) and v.startswith("=SUM(J")]
+    assert subtotal_formula, "sub total per semester (volume SKS) tidak ketemu"
 
-    # baris kategori yang belum ada rule tetap muncul dan ditandai, tidak disembunyikan
-    status_perlu_review = [c.value for row in ws_detail.iter_rows() for c in row if c.value == "Perlu review"]
-    assert len(status_perlu_review) == 1
+    # mahasiswa bimbingan & menguji masing-masing muncul dengan label sub-kategorinya
+    assert any("Laporan akhir studi" in str(v) for v in sel.values())
+    assert any(v == "c. Skripsi" for v in sel.values())
+    assert any("Khoirun Nida" in str(v) for v in sel.values())
+    assert any("Reza" in str(v) for v in sel.values())
 
-    total_formula = [c.value for row in ws_detail.iter_rows() for c in row if isinstance(c.value, str) and c.value.startswith("=SUM(F")]
-    assert total_formula == [f"=SUM(F2:F{len(rows) + 1})"]
+    # grand total menjumlahkan 3 kategori via formula, bukan angka hardcode
+    grand_total = [v for v in sel.values() if isinstance(v, str) and v.count("+L") == 2 and v.startswith("=L")]
+    assert grand_total, "formula total keseluruhan tidak ketemu"
+
+    ws_lain = wb["Belum Terpetakan"]
+    baris_lain = [tuple(c.value for c in row) for row in ws_lain.iter_rows(min_row=2)]
+    assert baris_lain == [("kategori.belum.ada.rule", "entah.pdf", 0.0)]
+
+
+def test_generate_workbook_tanpa_aktivitas_tidak_error(tmp_path, monkeypatch):
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "kosong.db")
+    db.init_db()
+    dosen_id = db.upsert_dosen("kosong@x.com", "Dosen Kosong", None)
+
+    wb = generate_workbook("Dosen Kosong", db.get_aktivitas(dosen_id))
+
+    assert wb.sheetnames == ["PENDIDIKAN"]
