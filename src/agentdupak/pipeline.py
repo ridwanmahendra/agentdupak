@@ -63,6 +63,9 @@ def proses(
                 log.append(f"[kosong] {label} -- parser tidak menemukan data, cek formatnya")
                 continue
 
+            for a in aktivitas:
+                a.sumber_url = f"https://drive.google.com/file/d/{f.id}/view"
+
             semua_aktivitas += aktivitas
             log.append(f"[ok] {label} -- {len(aktivitas)} aktivitas")
 

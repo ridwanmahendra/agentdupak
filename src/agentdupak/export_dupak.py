@@ -24,7 +24,7 @@ import json
 from collections import defaultdict
 
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -34,7 +34,10 @@ FONT_NORMAL = Font(name="Arial", size=10)
 FONT_BOLD = Font(name="Arial", size=10, bold=True)
 FONT_JUDUL = Font(name="Arial", size=12, bold=True)
 FONT_HEADER = Font(name="Arial", size=10, bold=True, color="FFFFFF")
+FONT_LINK = Font(name="Arial", size=10, color="0563C1", underline="single")
 FILL_HEADER = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+_SISI_TIPIS = Side(style="thin", color="000000")
+BORDER_GRID = Border(left=_SISI_TIPIS, right=_SISI_TIPIS, top=_SISI_TIPIS, bottom=_SISI_TIPIS)
 
 # posisi kolom data (1-indexed): A No, B Uraian level-1, C level-2, D level-3, E level-4,
 # H Tanggal, I Satuan Hasil, J Jumlah Volume, K Angka Kredit (satuan), L Jumlah AK, M Keterangan
@@ -94,6 +97,21 @@ def _tulis_label_semester(ws: Worksheet, baris: int, teks: str) -> None:
     cell.alignment = Alignment(wrap_text=True, vertical="top")
 
 
+def _tulis_keterangan(ws: Worksheet, baris: int, item: dict) -> None:
+    """Kolom 'Keterangan/Bukti Fisik' -- kalau ada link Drive asli (selalu ada
+    untuk hasil sync, lihat pipeline.py), jadikan hyperlink beneran yang bisa
+    diklik balik ke dokumennya, bukan cuma teks nama file."""
+    cell = ws.cell(row=baris, column=COL_KET)
+    url = item.get("sumber_url")
+    if url:
+        cell.value = "Link Lampiran"
+        cell.hyperlink = url
+        cell.font = FONT_LINK
+    else:
+        cell.value = item.get("sumber_file") or "-"
+        cell.font = FONT_NORMAL
+
+
 def _tulis_header_kolom(ws: Worksheet, baris: int) -> None:
     posisi = {1: "No.", 2: "Uraian Kegiatan", 8: "Tanggal", 9: "Satuan Hasil",
               10: "Jumlah\nVolume\nKegiatan", 11: "Angka Kredit", 12: "Jumlah\nAngka\nKredit",
@@ -113,7 +131,13 @@ def generate_workbook(dosen_nama: str, aktivitas_rows) -> Workbook:
     lainnya = []
     for row in aktivitas_rows:
         atribut = json.loads(row["atribut_json"])
-        item = {"atribut": atribut, "ak": row["ak"], "ak_perlu_review": row["ak_perlu_review"], "sumber_file": row["sumber_file"]}
+        item = {
+            "atribut": atribut,
+            "ak": row["ak"],
+            "ak_perlu_review": row["ak_perlu_review"],
+            "sumber_file": row["sumber_file"],
+            "sumber_url": row["sumber_url"],
+        }
         if row["kategori"] == "pendidikan.mengajar":
             mengajar.append(item)
         elif row["kategori"] == "pendidikan.menguji":
@@ -181,14 +205,22 @@ def generate_workbook(dosen_nama: str, aktivitas_rows) -> Workbook:
             atr = a["atribut"]
             ws.cell(row=baris, column=COL_C, value=i).font = FONT_NORMAL
             ws.cell(row=baris, column=COL_D, value=f"{atr.get('mata_kuliah', '?')} ({atr.get('kelas', '?')})").font = FONT_NORMAL
-            ws.cell(row=baris, column=COL_TANGGAL, value=f"Semester {label} {tahun_ajaran}").font = FONT_NORMAL
             ws.cell(row=baris, column=COL_SATUAN, value="SKS").font = FONT_NORMAL
             ws.cell(row=baris, column=COL_VOLUME, value=atr.get("sks")).font = FONT_NORMAL
             ws.cell(row=baris, column=COL_AK_SATUAN, value=1).font = FONT_NORMAL
             ws.cell(row=baris, column=COL_JUMLAH_AK, value=f"=J{baris}*K{baris}").font = FONT_NORMAL
-            ws.cell(row=baris, column=COL_KET, value=a["sumber_file"]).font = FONT_NORMAL
+            _tulis_keterangan(ws, baris, a)
             baris += 1
         baris_akhir_kelas = baris - 1
+
+        # 1 sel Tanggal untuk seluruh kelas di semester ini, di-merge vertikal
+        # (meniru tampilan form asli: "Semester Genap 2024/2025" di tengah,
+        # bukan diulang di tiap baris kelas)
+        tanggal_cell = ws.cell(row=baris_mulai_kelas, column=COL_TANGGAL, value=f"Semester {label} {tahun_ajaran}")
+        tanggal_cell.font = FONT_NORMAL
+        tanggal_cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+        if baris_akhir_kelas > baris_mulai_kelas:
+            ws.merge_cells(start_row=baris_mulai_kelas, start_column=COL_TANGGAL, end_row=baris_akhir_kelas, end_column=COL_TANGGAL)
 
         ws.cell(row=baris, column=COL_D, value="Sub total per semester").font = FONT_BOLD
         ws.cell(row=baris, column=COL_VOLUME, value=f"=SUM(J{baris_mulai_kelas}:J{baris_akhir_kelas})").font = FONT_BOLD
@@ -234,7 +266,7 @@ def generate_workbook(dosen_nama: str, aktivitas_rows) -> Workbook:
             ws.cell(row=baris, column=COL_VOLUME, value=1).font = FONT_NORMAL
             ws.cell(row=baris, column=COL_AK_SATUAN, value=a["ak"]).font = FONT_NORMAL
             ws.cell(row=baris, column=COL_JUMLAH_AK, value=f"=J{baris}*K{baris}").font = FONT_NORMAL
-            ws.cell(row=baris, column=COL_KET, value=a["sumber_file"]).font = FONT_NORMAL
+            _tulis_keterangan(ws, baris, a)
             baris += 1
         baris_akhir = baris - 1
 
@@ -284,7 +316,7 @@ def generate_workbook(dosen_nama: str, aktivitas_rows) -> Workbook:
                 ws.cell(row=baris, column=COL_VOLUME, value=1).font = FONT_NORMAL
                 ws.cell(row=baris, column=COL_AK_SATUAN, value=a["ak"]).font = FONT_NORMAL
                 ws.cell(row=baris, column=COL_JUMLAH_AK, value=f"=J{baris}*K{baris}").font = FONT_NORMAL
-                ws.cell(row=baris, column=COL_KET, value=a["sumber_file"]).font = FONT_NORMAL
+                _tulis_keterangan(ws, baris, a)
                 baris += 1
             baris_akhir = baris - 1
 
@@ -306,6 +338,12 @@ def generate_workbook(dosen_nama: str, aktivitas_rows) -> Workbook:
     # ================= Total keseluruhan =================
     ws.cell(row=baris, column=COL_B, value="JUMLAH (kategori yang sudah di-digitalisasi)").font = FONT_BOLD
     ws.cell(row=baris, column=COL_JUMLAH_AK, value=f"=L{baris_header_mengajar}+L{baris_header_bimbingan}+L{baris_header_menguji}").font = FONT_BOLD
+
+    # border grid cuma untuk area tabel (header s/d baris JUMLAH) -- catatan
+    # kaki di bawahnya teks bebas, bukan bagian tabel
+    for row in ws.iter_rows(min_row=7, max_row=baris, min_col=1, max_col=COL_KET):
+        for cell in row:
+            cell.border = BORDER_GRID
 
     if lainnya:
         baris += 2

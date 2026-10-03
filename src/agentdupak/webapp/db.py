@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS aktivitas (
     ak REAL NOT NULL,
     ak_perlu_review INTEGER NOT NULL DEFAULT 0,
     sumber_file TEXT NOT NULL,
+    sumber_url TEXT,
     disinkron_pada TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
@@ -59,6 +60,7 @@ def init_db() -> None:
             "ALTER TABLE dosen ADD COLUMN last_sync_log TEXT",
             "ALTER TABLE dosen ADD COLUMN last_synced_pada TEXT",
             "ALTER TABLE aktivitas ADD COLUMN ak_perlu_review INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE aktivitas ADD COLUMN sumber_url TEXT",
         ):
             try:
                 conn.execute(ddl)
@@ -102,8 +104,8 @@ def replace_aktivitas(dosen_id: int, aktivitas_list, log: list[str]) -> None:
     with connect() as conn:
         conn.execute("DELETE FROM aktivitas WHERE dosen_id = ?", (dosen_id,))
         conn.executemany(
-            """INSERT INTO aktivitas (dosen_id, kategori, atribut_json, ak, ak_perlu_review, sumber_file)
-               VALUES (?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO aktivitas (dosen_id, kategori, atribut_json, ak, ak_perlu_review, sumber_file, sumber_url)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
             [
                 (
                     dosen_id,
@@ -112,6 +114,7 @@ def replace_aktivitas(dosen_id: int, aktivitas_list, log: list[str]) -> None:
                     a.ak,
                     int(a.ak_perlu_review),
                     a.sumber_file,
+                    a.sumber_url,
                 )
                 for a in aktivitas_list
             ],
