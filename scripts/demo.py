@@ -19,15 +19,18 @@ def main() -> None:
     aktivitas = sk_mengajar.parse(mengajar_text, sumber_file="sk_mengajar.txt")
     aktivitas += sk_penguji.parse(penguji_text, sumber_file="sk_penguji_non_skripsi.txt")
 
-    terapkan(aktivitas)
+    _, peringatan = terapkan(aktivitas)
 
     total_ak = 0.0
     for a in aktivitas:
-        print(f"[{a.kategori}] {a.dosen} -> AK = {a.ak}")
+        tanda = " (PERLU REVIEW)" if a.ak_perlu_review else ""
+        print(f"[{a.kategori}] {a.dosen} -> AK = {a.ak}{tanda}")
         print(f"    atribut: {a.atribut}")
         total_ak += a.ak
 
     print(f"\nTotal AK dari {len(aktivitas)} aktivitas: {total_ak}")
+    for p in peringatan:
+        print(f"PERINGATAN: {p}")
 
 
 if __name__ == "__main__":

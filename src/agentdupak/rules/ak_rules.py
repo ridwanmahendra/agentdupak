@@ -1,8 +1,9 @@
 """Rules engine angka kredit (AK), berdasarkan Lampiran III Permenpan RB 17/2013 & 46/2013.
 
 Tiap tabel di sheet 'DUPAK OK' pada file DUPAK asli jadi rujukan nilai-nilai ini.
-Baru mencakup 2 kategori yang sudah diverifikasi dari dokumen nyata (SK Mengajar,
-SK Penguji non-skripsi) -- kategori lain ditambah setelah parser-nya ada.
+Baru mencakup kategori yang sudah diverifikasi dari dokumen nyata -- kategori
+lain ditambah setelah nilai AK resminya dikonfirmasi (lihat PARSER_BY_KATEGORI
+di pipeline.py untuk kategori yang parsernya sudah ada tapi belum ada di sini).
 """
 
 from __future__ import annotations
@@ -28,8 +29,17 @@ def hitung_ak(aktivitas: Aktivitas) -> float:
     raise ValueError(f"Kategori belum punya rule AK: {aktivitas.kategori!r}")
 
 
-def terapkan(aktivitas_list: list[Aktivitas]) -> list[Aktivitas]:
-    """Isi field .ak pada tiap aktivitas, in place, lalu kembalikan list yang sama."""
+def terapkan(aktivitas_list: list[Aktivitas]) -> tuple[list[Aktivitas], list[str]]:
+    """Isi field .ak pada tiap aktivitas, in place. Kategori yang belum punya
+    rule TIDAK menggagalkan seluruh sync -- AK-nya diisi 0 sementara dan
+    ditandai ak_perlu_review=True, supaya datanya tetap kelihatan (dan bisa
+    diaudit) sambil menunggu aturan resminya dikonfirmasi."""
+    peringatan: list[str] = []
     for a in aktivitas_list:
-        a.ak = hitung_ak(a)
-    return aktivitas_list
+        try:
+            a.ak = hitung_ak(a)
+        except ValueError as e:
+            a.ak = 0.0
+            a.ak_perlu_review = True
+            peringatan.append(str(e))
+    return aktivitas_list, peringatan

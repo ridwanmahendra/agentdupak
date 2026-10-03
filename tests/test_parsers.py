@@ -21,9 +21,10 @@ def test_parse_sk_mengajar_mengembalikan_4_kelas_dengan_sks_benar():
 
 def test_hitung_ak_mengajar_sama_dengan_sks():
     text = (FIXTURES / "sk_mengajar.txt").read_text()
-    aktivitas = terapkan(sk_mengajar.parse(text))
+    aktivitas, peringatan = terapkan(sk_mengajar.parse(text))
 
     assert sum(a.ak for a in aktivitas) == 4 + 2 + 3 + 3
+    assert peringatan == []
 
 
 def test_parse_sk_penguji_menangkap_peran_dan_data_mahasiswa():
@@ -40,6 +41,7 @@ def test_parse_sk_penguji_menangkap_peran_dan_data_mahasiswa():
 
 def test_hitung_ak_penguji_ketua_adalah_1():
     text = (FIXTURES / "sk_penguji_non_skripsi.txt").read_text()
-    aktivitas = terapkan(sk_penguji.parse(text))
+    aktivitas, peringatan = terapkan(sk_penguji.parse(text))
 
     assert aktivitas[0].ak == 1.0
+    assert peringatan == []

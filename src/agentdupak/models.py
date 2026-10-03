@@ -13,3 +13,4 @@ class Aktivitas:
     atribut: dict[str, Any] = field(default_factory=dict)
     sumber_file: str = ""
     ak: float | None = None  # diisi oleh rules engine, bukan oleh parser
+    ak_perlu_review: bool = False  # True kalau kategorinya belum punya aturan AK resmi

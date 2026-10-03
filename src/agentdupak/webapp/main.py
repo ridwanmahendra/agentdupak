@@ -185,7 +185,8 @@ async def sync(request: Request):
     aktivitas, log = proses(
         files, download_bytes=lambda file_id: drive_web.download_pdf_for_user(access_token, file_id)
     )
-    terapkan(aktivitas)
-    db.replace_aktivitas(dosen["id"], aktivitas, log)
+    _, peringatan_ak = terapkan(aktivitas)
+    peringatan_unik = sorted(set(peringatan_ak))
+    db.replace_aktivitas(dosen["id"], aktivitas, log + [f"[perlu-review] {p}" for p in peringatan_unik])
 
     return RedirectResponse(url="/", status_code=303)

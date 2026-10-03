@@ -13,7 +13,7 @@ from typing import Callable
 from agentdupak import pdf_extract
 from agentdupak.drive_common import DriveFile
 from agentdupak.models import Aktivitas
-from agentdupak.parsers import sk_mengajar, sk_penguji
+from agentdupak.parsers import sk_bimbingan, sk_mengajar, sk_penguji
 
 # (folder yang harus ADA di path, folder yang harus TIDAK ADA di path, parser)
 #
@@ -25,6 +25,7 @@ from agentdupak.parsers import sk_mengajar, sk_penguji
 PARSER_RULES: list[tuple[list[str], list[str], object]] = [
     (["SK Mengajar", "Sesuai Forlap"], ["Sesuai Siakad"], sk_mengajar.parse),
     (["SK Penguji"], [], sk_penguji.parse),
+    (["SK Bimbingan"], [], sk_bimbingan.parse),
 ]
 
 
@@ -50,9 +51,12 @@ def proses(
                 log.append(f"[skip] {label} -- belum ada parser untuk folder ini")
                 continue
 
-            pdf_path = Path(tmp) / f"{f.id}.pdf"
-            pdf_path.write_bytes(download_bytes(f.id))
-            text = pdf_extract.extract_text(pdf_path)
+            if getattr(parser, "butuh_download", True):
+                pdf_path = Path(tmp) / f"{f.id}.pdf"
+                pdf_path.write_bytes(download_bytes(f.id))
+                text = pdf_extract.extract_text(pdf_path)
+            else:
+                text = ""  # parser ini baca nama file saja, lihat sk_bimbingan.py
 
             aktivitas = parser(text, sumber_file=f.title)
             if not aktivitas:

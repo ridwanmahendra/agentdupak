@@ -9,6 +9,8 @@
     th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 14px; }
     .total { font-size: 20px; font-weight: bold; margin-top: 16px; }
     .log { background: #f6f6f6; padding: 12px; border-radius: 4px; font-size: 13px; margin-top: 16px; }
+    .perlu-review { background: #fff8e1; }
+    .tag-review { display: inline-block; background: #f0ad4e; color: white; font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-left: 6px; }
   </style>
 </head>
 <body>
@@ -38,12 +40,16 @@
   {% endif %}
 
   <div class="total">Total AK: {{ total_ak }}</div>
+  <p style="font-size: 13px; color: #888;">
+    <span class="tag-review">perlu review</span> = kategori ini belum punya aturan angka kredit resmi,
+    AK-nya sementara dihitung 0 (jadi tidak menambah Total AK di atas) sampai dikonfirmasi.
+  </p>
 
   <table>
     <tr><th>Kategori</th><th>Sumber File</th><th>AK</th><th>Detail</th></tr>
     {% for a in aktivitas %}
-    <tr>
-      <td>{{ a.kategori }}</td>
+    <tr class="{{ 'perlu-review' if a.ak_perlu_review else '' }}">
+      <td>{{ a.kategori }}{% if a.ak_perlu_review %}<span class="tag-review">perlu review</span>{% endif %}</td>
       <td>{{ a.sumber_file }}</td>
       <td>{{ a.ak }}</td>
       <td><code style="font-size: 11px;">{{ a.atribut_json }}</code></td>

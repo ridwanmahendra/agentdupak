@@ -19,9 +19,11 @@ def main(folder_id: str) -> None:
     for line in log:
         print(line)
 
-    terapkan(aktivitas)
+    _, peringatan = terapkan(aktivitas)
     total = sum(a.ak for a in aktivitas)
     print(f"\nTotal {len(aktivitas)} aktivitas, {total} AK")
+    for p in sorted(set(peringatan)):
+        print(f"PERINGATAN: {p}")
 
 
 if __name__ == "__main__":

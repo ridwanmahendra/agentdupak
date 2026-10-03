@@ -6,16 +6,15 @@ angka kredit (AK) otomatis — tanpa mengisi Excel manual.
 
 ## Status saat ini
 
-Sudah divalidasi sync end-to-end dari Drive asli (bukan cuma fixture). Hasil sync
-nyata (lihat log di dashboard): SK Mengajar/Sesuai Forlap berhasil penuh,
-sisanya masih ter-skip karena belum ada parsernya.
+Sudah divalidasi sync end-to-end dari Drive asli (bukan cuma fixture), termasuk
+lewat beberapa putaran perbaikan dari log sync nyata.
 
 | Jenis dokumen | Parser | Catatan |
 |---|---|---|
-| SK Mengajar / Sesuai Forlap ("JA ... Genap/Ganjil") | `parsers/sk_mengajar.py` | Teks asli, tidak perlu OCR. **Sumber kebenaran untuk mengajar** — jangan buat parser untuk folder "Sesuai Siakad" di sebelahnya, itu representasi lain dari data yang sama dan akan double-counting AK kalau ikut diparse. |
-| Berita Acara Penguji (non-skripsi) | `parsers/sk_penguji.py` | Regex-nya sudah ada, **tapi dokumen aslinya ternyata hasil scan** (pypdf dapat 0 karakter) — baru bisa tervalidasi penuh setelah OCR fallback ini (`pdf_extract.py`) dicoba ke dokumen asli. |
+| SK Mengajar / Sesuai Forlap ("JA ... Genap/Ganjil") | `parsers/sk_mengajar.py` | ✅ Tervalidasi di data nyata (lintas semester). **Sumber kebenaran untuk mengajar** — folder "Sesuai Siakad" di sebelahnya sengaja di-skip permanen (representasi lain dari data yang sama, akan double-counting kalau diparse juga). |
+| Berita Acara Penguji (non-skripsi + TA) | `parsers/sk_penguji.py` | ✅ Tervalidasi di data nyata setelah OCR fallback dipasang — dokumen aslinya hasil scan (pypdf dapat 0 karakter), bukan teks asli seperti dugaan awal. |
+| SK Bimbingan (Pembimbing Publikasi Karya Ilmiah) | `parsers/sk_bimbingan.py` | ✅ Parser jalan (dari nama file, tanpa download PDF). ⚠️ **AK-nya BELUM ada rule resmi** — ditandai `ak_perlu_review=True`, dihitung 0 sementara, tidak bikin sync gagal. Perlu dikonfirmasi nilai AK resminya dulu sebelum dipakai untuk pengajuan DUPAK sungguhan. |
 | Lembar Pengesahan / Cover (hasil scan, ber-watermark) | belum dibuat | OCR terbukti jalan (`pdf_extract.py` auto-fallback), tapi hasilnya noisy karena watermark — parsernya nanti harus toleran, cari frasa kunci bukan posisi baris persis. |
-| SK Bimbingan (metadata ada di nama file) | belum dibuat | Tidak perlu OCR — nama file sudah berisi tanggal, prodi, dosen, mahasiswa, NIM. |
 
 ## Menjalankan
 
@@ -97,9 +96,9 @@ tests/fixtures/          # contoh teks asli (hasil ekstraksi PDF nyata) untuk te
 
 ## Langkah selanjutnya
 
-1. Validasi ulang sync di folder "SK Penguji" sekarang OCR fallback ada — kalau regex `sk_penguji.py` masih gagal di teks hasil OCR yang noisy, perlu diperlonggar (atau diganti LLM lokal untuk ekstraksi, bukan regex).
-2. Parser untuk SK Bimbingan (dari nama file) dan Lembar Pengesahan/Cover (regex toleran noise, atau LLM lokal).
-3. Pemetaan folder → parser di `pipeline.py` (`PARSER_BY_FOLDER`) baru mencakup "SK Mengajar" (khusus subfolder "Sesuai Forlap") dan "SK Penguji" — tambah entri baru begitu parser lain siap, dan pastikan "Sesuai Siakad" tetap di-skip sengaja.
-4. Lengkapi `rules/ak_rules.py` dengan kategori Penelitian, Pengabdian, Penunjang dari sheet DUPAK OK.
-5. Status review sebelum AK dianggap final (sekarang langsung dihitung begitu sync, belum ada tahap konfirmasi dosen).
-6. Simpan refresh_token dengan terenkripsi di DB (sekarang plaintext) sebelum dipakai di luar localhost.
+1. **Konfirmasi nilai AK resmi untuk "bimbingan publikasi karya ilmiah"** (jalur non-skripsi) dan tambahkan ke `rules/ak_rules.py` — begitu ketemu, kategori ini otomatis lepas dari status "perlu review".
+2. Parser untuk Lembar Pengesahan/Cover (regex toleran noise OCR, atau LLM lokal untuk kasus yang terlalu berantakan).
+3. Lengkapi `rules/ak_rules.py` dengan kategori Penelitian, Pengabdian, Penunjang dari sheet DUPAK OK.
+4. Status review manual sebelum AK dianggap final untuk SUBMIT resmi (sekarang langsung dihitung begitu sync, belum ada tahap "dosen konfirmasi" terpisah dari "sistem menghitung").
+5. Simpan refresh_token dengan terenkripsi di DB (sekarang plaintext) sebelum dipakai di luar localhost.
+6. UI untuk menampilkan & menindaklanjuti aktivitas berstatus `ak_perlu_review` secara terpusat (sekarang cuma ditandai warna kuning di tabel dashboard).

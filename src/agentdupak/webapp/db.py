@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS aktivitas (
     kategori TEXT NOT NULL,
     atribut_json TEXT NOT NULL,
     ak REAL NOT NULL,
+    ak_perlu_review INTEGER NOT NULL DEFAULT 0,
     sumber_file TEXT NOT NULL,
     disinkron_pada TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -57,6 +58,7 @@ def init_db() -> None:
         for ddl in (
             "ALTER TABLE dosen ADD COLUMN last_sync_log TEXT",
             "ALTER TABLE dosen ADD COLUMN last_synced_pada TEXT",
+            "ALTER TABLE aktivitas ADD COLUMN ak_perlu_review INTEGER NOT NULL DEFAULT 0",
         ):
             try:
                 conn.execute(ddl)
@@ -100,10 +102,17 @@ def replace_aktivitas(dosen_id: int, aktivitas_list, log: list[str]) -> None:
     with connect() as conn:
         conn.execute("DELETE FROM aktivitas WHERE dosen_id = ?", (dosen_id,))
         conn.executemany(
-            """INSERT INTO aktivitas (dosen_id, kategori, atribut_json, ak, sumber_file)
-               VALUES (?, ?, ?, ?, ?)""",
+            """INSERT INTO aktivitas (dosen_id, kategori, atribut_json, ak, ak_perlu_review, sumber_file)
+               VALUES (?, ?, ?, ?, ?, ?)""",
             [
-                (dosen_id, a.kategori, json.dumps(a.atribut, ensure_ascii=False), a.ak, a.sumber_file)
+                (
+                    dosen_id,
+                    a.kategori,
+                    json.dumps(a.atribut, ensure_ascii=False),
+                    a.ak,
+                    int(a.ak_perlu_review),
+                    a.sumber_file,
+                )
                 for a in aktivitas_list
             ],
         )
