@@ -74,6 +74,26 @@ def _set_lebar_kolom(ws: Worksheet) -> None:
         ws.column_dimensions[get_column_letter(kolom)].width = w
 
 
+def _tulis_deskripsi_bidang(ws: Worksheet, baris: int, teks: str) -> None:
+    """Tulis paragraf deskripsi bidang (panjang) dengan merge C:K supaya wrap
+    di lebar yang wajar -- kalau cuma ditaruh di kolom C (lebar 6, dipakai
+    nomor item di baris lain), teks sepanjang ini jadi puluhan baris sempit."""
+    ws.merge_cells(start_row=baris, start_column=COL_C, end_row=baris, end_column=COL_AK_SATUAN)
+    cell = ws.cell(row=baris, column=COL_C, value=teks)
+    cell.font = FONT_NORMAL
+    cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+
+def _tulis_label_semester(ws: Worksheet, baris: int, teks: str) -> None:
+    """Sama seperti _tulis_deskripsi_bidang tapi untuk label semester
+    ('1. Semester ganjil 2024/2025 (...); maksimum 12 SKS per semester') --
+    lebih pendek, tapi tetap kepanjangan untuk kolom selebar 6."""
+    ws.merge_cells(start_row=baris, start_column=COL_C, end_row=baris, end_column=7)  # sampai kolom G
+    cell = ws.cell(row=baris, column=COL_C, value=teks)
+    cell.font = FONT_NORMAL
+    cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+
 def _tulis_header_kolom(ws: Worksheet, baris: int) -> None:
     posisi = {1: "No.", 2: "Uraian Kegiatan", 8: "Tanggal", 9: "Satuan Hasil",
               10: "Jumlah\nVolume\nKegiatan", 11: "Angka Kredit", 12: "Jumlah\nAngka\nKredit",
@@ -127,14 +147,13 @@ def generate_workbook(dosen_nama: str, aktivitas_rows) -> Workbook:
     # ================= A. Melaksanakan perkuliahan (mengajar) =================
     baris_header_mengajar = baris
     ws.cell(row=baris, column=COL_B, value="A").font = FONT_BOLD
-    ws.cell(row=baris, column=COL_C, value=(
+    _tulis_deskripsi_bidang(ws, baris, (
         "Melaksanakan perkulihan/ tutorial dan membimbing, menguji serta menyelenggarakan "
         "pendidikan di laboratorium, praktek keguruan bengkel/ studio/kebun pada "
         "Fakultas/Sekolah Tinggi/Akademi/ Politeknik sendiri, pada fakultas lain dalam "
         "lingkungan Universitas/Institut sendiri, maupun di luar perguruan tinggi sendiri "
         "secara melembaga paling banyak 12 sks per semester"
-    )).font = FONT_NORMAL
-    ws.cell(row=baris, column=COL_C).alignment = Alignment(wrap_text=True, vertical="top")
+    ))
     baris += 1
 
     kelompok_mengajar = []
@@ -151,9 +170,9 @@ def generate_workbook(dosen_nama: str, aktivitas_rows) -> Workbook:
     nomor_semester = 1
     for label, tahun_ajaran, anggota in kelompok_mengajar:
         rentang = rentang_bulan(label, tahun_ajaran) if label in ("Genap", "Ganjil") else ""
-        ws.cell(row=baris, column=COL_C, value=(
+        _tulis_label_semester(ws, baris, (
             f"{nomor_semester}. Semester {label.lower()} {tahun_ajaran} {rentang}; maksimum 12 SKS per semester"
-        )).font = FONT_NORMAL
+        ))
         nomor_semester += 1
         baris += 1
 
@@ -187,19 +206,18 @@ def generate_workbook(dosen_nama: str, aktivitas_rows) -> Workbook:
     # ================= D. Membimbing (publikasi karya ilmiah -> Laporan akhir) =================
     baris_header_bimbingan = baris
     ws.cell(row=baris, column=COL_B, value="D").font = FONT_BOLD
-    ws.cell(row=baris, column=COL_C, value=(
+    _tulis_deskripsi_bidang(ws, baris, (
         "Membimbing dan ikut membimbing dalam menghasilkan disertasi, thesis, skripsi dan "
         "laporan akhir studi yang sesuai bidang penugasannya (maksimum 32 kum per semester) "
         "-- di sini diisi dari Pembimbing Publikasi Karya Ilmiah (jalur non-skripsi), "
         "dipetakan ke sub-baris 'd. Laporan akhir studi', Pembimbing Utama"
-    )).font = FONT_NORMAL
-    ws.cell(row=baris, column=COL_C).alignment = Alignment(wrap_text=True, vertical="top")
+    ))
     baris += 1
 
     baris_subtotal_bimbingan = []
     for label, tahun_ajaran, anggota in _kelompokkan_per_semester(bimbingan):
         label_tampil = f"Semester {label.lower()} {tahun_ajaran}" if label != TANPA_TANGGAL else TANPA_TANGGAL
-        ws.cell(row=baris, column=COL_C, value=label_tampil).font = FONT_NORMAL
+        _tulis_label_semester(ws, baris, label_tampil)
         baris += 1
         ws.cell(row=baris, column=COL_D, value="Pembimbing Utama per orang (setiap mahasiswa)").font = FONT_NORMAL
         baris += 1
@@ -232,18 +250,17 @@ def generate_workbook(dosen_nama: str, aktivitas_rows) -> Workbook:
     # ================= E. Bertugas sebagai penguji (-> skripsi/setara) =================
     baris_header_menguji = baris
     ws.cell(row=baris, column=COL_B, value="E").font = FONT_BOLD
-    ws.cell(row=baris, column=COL_C, value=(
+    _tulis_deskripsi_bidang(ws, baris, (
         "Bertugas sebagai penguji pada ujian akhir/Profesi (maksimum 8 kum per semester) "
         "-- di sini diisi dari Penguji Publikasi Karya Ilmiah (jalur non-skripsi), "
         "dipetakan ke sub-baris 'c. Skripsi'"
-    )).font = FONT_NORMAL
-    ws.cell(row=baris, column=COL_C).alignment = Alignment(wrap_text=True, vertical="top")
+    ))
     baris += 1
 
     baris_subtotal_menguji_per_semester = []
     for label, tahun_ajaran, anggota in _kelompokkan_per_semester(menguji):
         label_tampil = f"Semester {label.lower()} {tahun_ajaran}" if label != TANPA_TANGGAL else TANPA_TANGGAL
-        ws.cell(row=baris, column=COL_C, value=label_tampil).font = FONT_NORMAL
+        _tulis_label_semester(ws, baris, label_tampil)
         baris += 1
 
         baris_subtotal_peran = []
