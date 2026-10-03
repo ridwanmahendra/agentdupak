@@ -7,12 +7,13 @@ Jalankan (lihat README untuk setup OAuth client "Web application"):
 """
 
 import base64
+import io
 import json
 import os
 from typing import Optional
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -190,3 +191,26 @@ async def sync(request: Request):
     db.replace_aktivitas(dosen["id"], aktivitas, log + [f"[perlu-review] {p}" for p in peringatan_unik])
 
     return RedirectResponse(url="/", status_code=303)
+
+
+@app.get("/export.xlsx")
+async def export_xlsx(request: Request):
+    dosen = _current_dosen(request)
+    if not dosen:
+        return RedirectResponse(url="/")
+
+    from agentdupak.export_dupak import generate_workbook  # import lokal, hindari circular saat startup
+
+    aktivitas = db.get_aktivitas(dosen["id"])
+    wb = generate_workbook(dosen["nama"], aktivitas)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    nama_file = f"rekap_dupak_{dosen['nama'].replace(' ', '_')}.xlsx"
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{nama_file}"'},
+    )

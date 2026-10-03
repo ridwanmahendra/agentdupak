@@ -68,6 +68,11 @@ Setup sekali (beda dari OAuth client CLI di atas — ini tipe **Web application*
      PYTHONPATH=src uvicorn agentdupak.webapp.main:app --reload
    ```
 3. Buka `http://localhost:8000`, login, pilih folder, sync.
+4. Klik **"Download Excel"** di dashboard untuk dapat rekap `.xlsx` (sheet
+   Ringkasan per kategori + sheet Detail per aktivitas, pakai formula
+   SUM/SUMIF/COUNTIF asli -- bukan isi ulang template DUPAK OK aslinya yang
+   strukturnya terlalu manual/rapuh untuk digenerate, tapi rekap bersih siap
+   jadi lampiran atau acuan transkripsi ke form resmi).
 
 Datanya tersimpan di `agentdupak.db` (SQLite, local file, tidak di-commit).
 
@@ -80,14 +85,15 @@ src/agentdupak/
   drive_common.py        # logic jalan-jalan folder Drive + download, dipakai CLI & web
   drive_sync.py          # versi CLI: pakai credentials.json/token.json di disk
   pipeline.py             # download -> ekstrak -> parse -> Aktivitas (dipakai CLI & web)
-  parsers/                # 1 modul per jenis dokumen
-  rules/ak_rules.py       # rujukan Lampiran III Permenpan RB 17/2013 & 46/2013
+  export_dupak.py          # Aktivitas tersimpan -> workbook openpyxl (rekap + formula)
+  parsers/                  # 1 modul per jenis dokumen
+  rules/ak_rules.py         # rujukan Lampiran III Permenpan RB 17/2013 & 46/2013
   webapp/
-    main.py               # route FastAPI (login, pilih folder, sync, dashboard)
-    auth.py               # OAuth login Google (Authlib)
-    drive_web.py           # versi web: pakai access token dari sesi browser
-    db.py                  # penyimpanan SQLite (dosen + aktivitas)
-    templates/              # login.html, browse.html, dashboard.html
+    main.py                 # route FastAPI (login, pilih folder, sync, dashboard, export)
+    auth.py                 # OAuth login Google (Authlib)
+    drive_web.py             # versi web: pakai access token dari sesi browser
+    db.py                    # penyimpanan SQLite (dosen + aktivitas)
+    templates/                # login.html, browse.html, dashboard.html
 scripts/
   demo.py               # jalan dari fixture teks (tanpa Drive) -- CLI
   sync_and_parse.py      # jalan end-to-end dari Drive asli -- CLI
